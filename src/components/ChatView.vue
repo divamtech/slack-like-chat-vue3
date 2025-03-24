@@ -3,54 +3,7 @@ import { ref, computed, onBeforeUnmount, onMounted, nextTick, onUnmounted } from
 import { PaperClipIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline'
 import 'emoji-picker-element'
 import AttachmentViewer from './AttachmentViewer.vue'
-
-interface Message {
-  id: string
-  user: string
-  avatar: string
-  content: string
-  timestamp: string
-  attachments?: MessageAttachment[]
-  comments?: Message[]
-  reactions?: Reaction[]
-  online?: boolean
-}
-
-interface Comment {
-  id: string
-  user: string
-  avatar: string
-  content: string
-  timestamp: string
-}
-
-interface Reaction {
-  emoji: string
-  count: number
-  users: string[]
-}
-
-interface Suggestion {
-  type: 'user' | 'channel'
-  text: string
-}
-
-interface Attachment {
-  file: File
-  preview?: string
-  type: 'image' | 'document'
-}
-
-interface MessageAttachment {
-  name: string
-  type: 'image' | 'document'
-  preview?: string
-}
-
-interface MessageGroup {
-  date: string
-  messages: Message[]
-}
+import { Attachment, Message, MessageGroup, Suggestion } from '@/types/chat'
 
 const messages = ref<Message[]>([
   {
@@ -365,7 +318,7 @@ const adjustTextareaHeight = (event: Event) => {
   textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden'
 }
 
-const downloadAttachment = (attachment: MessageAttachment) => {
+const downloadAttachment = (attachment: Attachment) => {
   const link = document.createElement('a')
   link.href = attachment.preview || ''
   link.download = attachment.name

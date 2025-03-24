@@ -1,13 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ChevronDownIcon, PencilSquareIcon } from '@heroicons/vue/24/outline'
-
-interface DirectMessage {
-  id: string
-  name: string
-  avatar: string
-  online: boolean
-}
+import { ChevronDownIcon } from '@heroicons/vue/24/outline'
+import { DirectMessage } from '@/types/chat'
 
 const directMessages: DirectMessage[] = [
   { id: '1', name: 'batman weave', avatar: 'BW', online: false },
@@ -30,24 +24,24 @@ const toggleDMs = () => {
 <template>
   <div class="sidebar">
     <!-- Header -->
-    <div class="header">
+    <!-- <div class="header">
       <div class="header-title">
         <h1>Team Chat</h1>
         <ChevronDownIcon class="icon" />
       </div>
       <PencilSquareIcon class="icon" />
-    </div>
+    </div> -->
 
     <!-- Mentions -->
-    <div class="section">
+    <!-- <div class="section">
       <div class="flex-row">
         <span class="text-gray">@</span>
         <span>Mentions</span>
       </div>
-    </div>
+    </div> -->
 
     <!-- Channels -->
-    <div class="section">
+    <!-- <div class="section">
       <div class="flex-row space-between">
         <div class="flex-row clickable" @click="toggleChannels">
           <ChevronDownIcon class="icon" :class="{ 'rotate-icon': !isChannelsExpanded }" />
@@ -62,7 +56,7 @@ const toggleDMs = () => {
         <span>+</span>
         <span>Add Group</span>
       </button>
-    </div>
+    </div> -->
 
     <!-- Direct Messages -->
     <div class="section">
@@ -71,7 +65,7 @@ const toggleDMs = () => {
           <ChevronDownIcon class="icon" :class="{ 'rotate-icon': !isDMsExpanded }" />
           <span>Direct Messages</span>
         </div>
-        <button class="add-button">+</button>
+        <!-- <button class="add-button">+</button> -->
       </div>
       <div v-show="isDMsExpanded" class="dm-list">
         <div v-for="dm in directMessages" :key="dm.id" class="dm-item">
@@ -83,10 +77,10 @@ const toggleDMs = () => {
           </div>
           <span>{{ dm.name }}</span>
         </div>
-        <button class="add-button full">
+        <!-- <button class="add-button full">
           <span>+</span>
           <span>Add Direct Message</span>
-        </button>
+        </button> -->
       </div>
     </div>
   </div>
