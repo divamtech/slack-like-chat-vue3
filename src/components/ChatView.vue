@@ -555,9 +555,9 @@ onMounted(() => {
                 </div>
               </div>
 
-              <button class="add-reaction" @click="showReactionPicker(message.id)">
+              <!-- <button class="add-reaction" @click="showReactionPicker(message.id)">
                 <span>😊</span>
-              </button>
+              </button> -->
             </div>
 
             <emoji-picker v-if="showEmojiPickerForMessage === message.id" class="reaction-picker" @emoji-click="addReactionFromPicker"></emoji-picker>
