@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, nextTick, onUnmounted } from 'vue'
 import { PaperClipIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline'
+import { BoldIcon, ItalicIcon, CodeIcon, ListBulletIcon, HashtagIcon, BookmarkIcon, EllipsisHorizontalIcon } from '@heroicons/vue/24/solid'
+import { PinIcon } from '@heroicons/vue/24/outline'
 import 'emoji-picker-element'
 import AttachmentViewer from './AttachmentViewer.vue'
 
@@ -79,6 +81,7 @@ const showEmojiPicker = ref(false)
 const isDragging = ref(false)
 const showEmojiPickerForMessage = ref<string | null>(null)
 const selectedAttachment = ref<MessageAttachment | null>(null)
+const messagesContainer = ref<HTMLElement | null>(null)
 
 const users = ['Batman Weave', 'Chipi Chipa', 'Nikunj Rami test']
 
@@ -169,13 +172,17 @@ const handleChannelClick = (channel: string) => {
   channelElement?.scrollIntoView({ behavior: 'smooth' })
 }
 
-const formatMessage = (content: string) => {
-  content = content.replace(/@(\w+\s?\w+)/g, '<span class="mention" onclick="handleMentionClick(\'$1\')">@$1</span>')
-  content = content.replace(/#([\w-]+)/g, '<span class="channel" onclick="handleChannelClick(\'$1\')">#$1</span>')
+const formatMessage = (content: string): string => {
   return content
+    .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+    .replace(/_(.*?)_/g, '<em>$1</em>')
+    .replace(/`(.*?)`/g, '<code>$1</code>')
+    .replace(/•\s(.*?)\n/g, '<li>$1</li>')
+    .replace(/@(\w+)/g, '<span class="mention">@$1</span>')
+    .replace(/#(\w+)/g, '<span class="channel">#$1</span>')
 }
 
-const sendMessage = () => {
+const sendMessage = async () => {
   if (newMessage.value.trim() || attachments.value.length > 0) {
     const messageAttachments = attachments.value.map((att) => ({
       name: att.file.name,
@@ -194,10 +201,14 @@ const sendMessage = () => {
 
     newMessage.value = ''
     attachments.value = []
+
+    // Wait for DOM update then scroll
+    await nextTick()
+    scrollToBottom()
   }
 }
 
-const addComment = (messageId: string) => {
+const addComment = async (messageId: string) => {
   const message = messages.value.find((m) => m.id === messageId)
   if (!message) return
 
@@ -215,6 +226,10 @@ const addComment = (messageId: string) => {
 
   commentText.value = ''
   showCommentInput.value = null
+
+  // Wait for DOM update then scroll
+  await nextTick()
+  scrollToBottom()
 }
 
 const addReaction = (messageId: string, emoji: string) => {
@@ -411,11 +426,55 @@ const messageGroups = computed(() => {
 
   return groups
 })
+
+const applyFormat = (format: string) => {
+  const textarea = document.querySelector('.message-input') as HTMLTextAreaElement
+  if (!textarea) return
+
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const selectedText = newMessage.value.substring(start, end)
+
+  const formats = {
+    bold: { prefix: '*', suffix: '*' },
+    italic: { prefix: '_', suffix: '_' },
+    code: { prefix: '`', suffix: '`' },
+    list: { prefix: '• ', suffix: '\n' },
+  }
+
+  const { prefix, suffix } = formats[format as keyof typeof formats]
+
+  newMessage.value = newMessage.value.substring(0, start) + prefix + (selectedText || 'text') + suffix + newMessage.value.substring(end)
+
+  // Set cursor position
+  const newPosition = start + prefix.length
+  textarea.focus()
+  textarea.setSelectionRange(newPosition, newPosition + (selectedText || 'text').length)
+}
+
+const scrollToBottom = () => {
+  if (messagesContainer.value) {
+    const container = messagesContainer.value
+    container.scrollTop = container.scrollHeight
+  }
+}
+
+onMounted(() => {
+  scrollToBottom()
+
+  // Optional: Handle window resize
+  window.addEventListener('resize', scrollToBottom)
+
+  // Optional: Clean up
+  onUnmounted(() => {
+    window.removeEventListener('resize', scrollToBottom)
+  })
+})
 </script>
 
 <template>
   <div class="chat-view">
-    <div class="messages-container">
+    <div class="messages-container" ref="messagesContainer">
       <div class="messages">
         <div v-for="group in messageGroups" :key="group.date">
           <div class="date-separator">
@@ -1221,5 +1280,165 @@ button:hover {
   font-weight: 500;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.message-input-container {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  margin: 16px;
+  background: white;
+}
+
+.options-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  border-radius: 8px 8px 0 0;
+}
+
+.left-options,
+.right-options {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.option-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  color: #616161;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.option-button:hover {
+  background: #edeef0;
+  color: #1a73e8;
+}
+
+.option-button .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.formatting-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 8px;
+  border-bottom: 1px solid #e0e0e0;
+  background: white;
+}
+
+.format-button {
+  padding: 6px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #616161;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.format-button:hover {
+  background: #f5f5f5;
+  color: #1a73e8;
+}
+
+.format-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.input-wrapper {
+  padding: 8px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.message-input {
+  flex: 1;
+  border: none;
+  padding: 8px;
+  resize: none;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.message-input:focus {
+  outline: none;
+}
+
+.input-actions {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+}
+
+.action-button {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-button:hover {
+  background: #f5f5f5;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  color: #616161;
+}
+
+/* Message formatting styles */
+:deep(.message-content strong) {
+  font-weight: 600;
+}
+
+:deep(.message-content em) {
+  font-style: italic;
+}
+
+:deep(.message-content code) {
+  background: #f5f5f5;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 90%;
+}
+
+:deep(.message-content li) {
+  margin-left: 20px;
+  list-style-type: disc;
+}
+
+:deep(.message-content .mention) {
+  color: #1a73e8;
+  font-weight: 500;
+}
+
+:deep(.message-content .channel) {
+  color: #1a73e8;
+  font-weight: 500;
 }
 </style>
