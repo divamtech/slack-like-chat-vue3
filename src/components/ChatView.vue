@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount } from 'vue'
-import { PaperClipIcon } from '@heroicons/vue/24/outline'
+import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
+import { PaperClipIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline'
 import 'emoji-picker-element'
+import AttachmentViewer from './AttachmentViewer.vue'
 
 interface Message {
   id: string
@@ -72,6 +73,7 @@ const commentText = ref('')
 const showEmojiPicker = ref(false)
 const isDragging = ref(false)
 const showEmojiPickerForMessage = ref<string | null>(null)
+const selectedAttachment = ref<MessageAttachment | null>(null)
 
 const users = ['Batman Weave', 'Chipi Chipa', 'Nikunj Rami test']
 
@@ -328,6 +330,38 @@ const toggleReaction = (messageId: string, emoji: string) => {
     })
   }
 }
+
+const adjustTextareaHeight = (event: Event) => {
+  const textarea = event.target as HTMLTextAreaElement
+  const messagesDiv = document.querySelector('.messages') as HTMLElement
+  const maxHeight = messagesDiv ? messagesDiv.clientHeight / 3 : 200
+
+  // Reset height to auto to get the correct scrollHeight
+  textarea.style.height = 'auto'
+
+  // Set new height based on content
+  const newHeight = Math.min(textarea.scrollHeight, maxHeight)
+  textarea.style.height = `${newHeight}px`
+
+  // Add scrollbar if content exceeds maxHeight
+  textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden'
+}
+
+const downloadAttachment = (attachment: MessageAttachment) => {
+  const link = document.createElement('a')
+  link.href = attachment.preview || ''
+  link.download = attachment.name
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+onMounted(() => {
+  const textareas = document.querySelectorAll('textarea')
+  textareas.forEach((textarea) => {
+    adjustTextareaHeight({ target: textarea } as Event)
+  })
+})
 </script>
 
 <template>
@@ -344,13 +378,21 @@ const toggleReaction = (messageId: string, emoji: string) => {
         </div>
         <div class="message-content" v-html="formatMessage(message.content)"></div>
         <div v-if="message.attachments?.length" class="message-attachments">
-          <div v-for="attachment in message.attachments" :key="attachment.name" class="message-attachment">
+          <div v-for="attachment in message.attachments" :key="attachment.name" class="message-attachment" @click="selectedAttachment = attachment">
             <div class="attachment-content">
               <div v-if="attachment.type === 'image'" class="attachment-thumbnail">
                 <img :src="attachment.preview" :alt="attachment.name" />
+                <div class="attachment-overlay">
+                  <button class="overlay-button" @click.stop="downloadAttachment(attachment)">
+                    <ArrowDownTrayIcon class="icon" />
+                  </button>
+                </div>
               </div>
               <div v-else class="attachment-icon">
                 <PaperClipIcon class="icon" />
+                <button class="download-button" @click.stop="downloadAttachment(attachment)">
+                  <ArrowDownTrayIcon class="icon" />
+                </button>
               </div>
               <span class="attachment-name">{{ attachment.name }}</span>
             </div>
@@ -372,7 +414,12 @@ const toggleReaction = (messageId: string, emoji: string) => {
         <button class="add-comment" @click="showCommentInput = message.id" v-if="showCommentInput !== message.id">Reply</button>
 
         <div v-if="showCommentInput === message.id" class="comment-input">
-          <textarea v-model="commentText" placeholder="Add a comment..." @keydown.enter.prevent="addComment(message.id)"></textarea>
+          <textarea
+            v-model="commentText"
+            placeholder="Add a comment..."
+            @keydown.enter.prevent="addComment(message.id)"
+            @input="adjustTextareaHeight"
+          ></textarea>
           <button @click="addComment(message.id)">Send</button>
         </div>
 
@@ -409,7 +456,12 @@ const toggleReaction = (messageId: string, emoji: string) => {
           v-model="newMessage"
           placeholder="Message #general (Use @ for mentions and # for channels)"
           @keydown="handleKeyDown"
-          @input="handleInput"
+          @input="
+            (e) => {
+              handleInput(e)
+              adjustTextareaHeight(e)
+            }
+          "
           @paste="handlePaste"
         ></textarea>
 
@@ -451,6 +503,7 @@ const toggleReaction = (messageId: string, emoji: string) => {
         <button @click="sendMessage">Send</button>
       </div>
     </div>
+    <AttachmentViewer v-if="selectedAttachment" :attachment="selectedAttachment" @close="selectedAttachment = null" />
   </div>
 </template>
 
@@ -461,7 +514,7 @@ const toggleReaction = (messageId: string, emoji: string) => {
   flex-direction: column;
   height: 100vh;
   min-width: 0; /* Add this to prevent overflow */
-  background: #fff;
+  background: #fafafa;
 }
 
 .messages {
@@ -552,19 +605,22 @@ const toggleReaction = (messageId: string, emoji: string) => {
   border-top: 1px solid #e5e5e5;
   padding: 16px;
   background: white;
+  display: flex;
+  flex-direction: column;
 }
 
 .editor-container {
   position: relative;
   max-width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 textarea {
   width: 100%;
   max-width: 100%;
   min-height: 60px;
-  max-height: 200px;
-  resize: vertical;
+  resize: none; /* Change from vertical to none since we're handling height automatically */
   padding: 12px;
   padding-right: 40px; /* Space for emoji button */
   border: 1px solid #e5e5e5;
@@ -572,6 +628,8 @@ textarea {
   font-family: inherit;
   font-size: inherit;
   line-height: 1.5;
+  overflow-y: hidden; /* Hide scrollbar by default */
+  transition: height 0.1s ease-out;
 }
 
 textarea:focus {
@@ -719,7 +777,15 @@ button:hover {
 .comment-input textarea {
   width: 100%;
   min-height: 60px;
-  margin-bottom: 8px;
+  border: none;
+  resize: none;
+  padding: 8px;
+  padding-right: 40px;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.5;
+  overflow-y: hidden;
+  transition: height 0.1s ease-out;
 }
 
 .reactions {
@@ -849,131 +915,12 @@ button:hover {
   border-radius: 8px;
   overflow: hidden;
   position: relative;
-}
-
-.attachment-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 8px;
-}
-
-.attachment-thumbnail {
-  width: 100%;
-  height: 100px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-  border-radius: 4px;
-}
-
-.attachment-thumbnail img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.attachment-icon {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-  border-radius: 4px;
-}
-
-.attachment-name {
-  margin-top: 4px;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
-  max-width: 140px;
-}
-
-.remove-attachment {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   cursor: pointer;
-  padding: 0;
+  transition: transform 0.2s;
 }
 
-/* Prevent horizontal scroll on mobile */
-@media (max-width: 768px) {
-  .chat-view {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .sidebar {
-    display: none; /* Optional: hide sidebar on mobile */
-  }
-
-  .messages {
-    padding: 12px;
-  }
-
-  .editor {
-    padding: 12px;
-  }
-
-  .message {
-    max-width: 100%;
-  }
-
-  .message-content {
-    word-break: break-word;
-  }
-
-  .attachments-preview {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  }
-}
-
-/* Hide scrollbar but keep functionality */
-.messages::-webkit-scrollbar {
-  width: 8px;
-}
-
-.messages::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.messages::-webkit-scrollbar-thumb {
-  background: #ddd;
-  border-radius: 4px;
-}
-
-.messages::-webkit-scrollbar-thumb:hover {
-  background: #ccc;
-}
-
-.message-attachments {
-  margin-left: 44px;
-  margin-top: 8px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 8px;
-}
-
-.message-attachment {
-  background: #f5f5f5;
-  border-radius: 8px;
-  overflow: hidden;
-  position: relative;
+.attachment:hover {
+  transform: translateY(-2px);
 }
 
 .attachment-content {
@@ -984,6 +931,7 @@ button:hover {
 }
 
 .attachment-thumbnail {
+  position: relative;
   width: 100%;
   height: 100px;
   overflow: hidden;
@@ -1000,7 +948,41 @@ button:hover {
   object-fit: cover;
 }
 
+.attachment-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.attachment:hover .attachment-overlay {
+  opacity: 1;
+}
+
+.overlay-button {
+  background: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overlay-button:hover {
+  background: #f5f5f5;
+}
+
 .attachment-icon {
+  position: relative;
   width: 40px;
   height: 40px;
   display: flex;
@@ -1008,6 +990,27 @@ button:hover {
   justify-content: center;
   background: #fff;
   border-radius: 4px;
+}
+
+.download-button {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.attachment:hover .download-button {
+  opacity: 1;
 }
 
 .attachment-name {
@@ -1023,6 +1026,114 @@ button:hover {
 .icon {
   width: 24px;
   height: 24px;
+  color: #666;
+}
+
+.message-attachments {
+  margin-left: 44px;
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.message-attachment {
+  cursor: pointer;
+}
+
+.attachment-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.attachment-thumbnail {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.attachment-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.attachment-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.message-attachment:hover .attachment-overlay {
+  opacity: 1;
+}
+
+.overlay-button {
+  background: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px;
+  cursor: pointer;
+}
+
+.overlay-button:hover {
+  background: #f5f5f5;
+}
+
+.attachment-icon {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.download-button {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.message-attachment:hover .download-button {
+  opacity: 1;
+}
+
+.attachment-name {
+  font-size: 12px;
+  color: #666;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
   color: #666;
 }
 </style>
