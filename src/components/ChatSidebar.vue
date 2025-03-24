@@ -51,7 +51,7 @@ const toggleDMs = () => {
       <div class="flex-row space-between">
         <div class="flex-row clickable" @click="toggleChannels">
           <ChevronDownIcon class="icon" :class="{ 'rotate-icon': !isChannelsExpanded }" />
-          <span>Channels</span>
+          <span>Groups</span>
         </div>
         <button class="add-button">+</button>
       </div>
@@ -60,7 +60,7 @@ const toggleDMs = () => {
       </div>
       <button v-show="isChannelsExpanded" class="add-button full">
         <span>+</span>
-        <span>Add Channel</span>
+        <span>Add Group</span>
       </button>
     </div>
 

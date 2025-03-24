@@ -47,20 +47,25 @@ interface MessageAttachment {
   preview?: string
 }
 
+interface MessageGroup {
+  date: string
+  messages: Message[]
+}
+
 const messages = ref<Message[]>([
   {
     id: '1',
     user: 'Batman Weave',
     avatar: 'BW',
     content: 'Hey @Chipi Chipa! Check #testing-mehuk-kanika-bhrugu',
-    timestamp: '2:30 PM',
+    timestamp: new Date(new Date().setHours(14, 30)).toISOString(),
   },
   {
     id: '2',
     user: 'Chipi Chipa',
     avatar: 'CC',
     content: 'Just working on the new features in #general!',
-    timestamp: '2:31 PM',
+    timestamp: new Date(new Date().setHours(14, 31)).toISOString(),
   },
 ])
 
@@ -362,86 +367,145 @@ onMounted(() => {
     adjustTextareaHeight({ target: textarea } as Event)
   })
 })
+
+// Helper function to format date
+const formatDate = (date: Date): string => {
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  if (date.toDateString() === today.toDateString()) {
+    return 'Today'
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return 'Yesterday'
+  } else {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
+    })
+  }
+}
+
+// Compute message groups
+const messageGroups = computed(() => {
+  const groups: MessageGroup[] = []
+  let currentDate = ''
+
+  messages.value.forEach((message) => {
+    // Convert timestamp to Date object
+    const messageDate = new Date(message.timestamp)
+    const dateStr = messageDate.toDateString()
+
+    if (dateStr !== currentDate) {
+      currentDate = dateStr
+      groups.push({
+        date: formatDate(messageDate),
+        messages: [message],
+      })
+    } else {
+      groups[groups.length - 1].messages.push(message)
+    }
+  })
+
+  return groups
+})
 </script>
 
 <template>
   <div class="chat-view">
-    <div class="messages">
-      <div v-for="message in messages" :key="message.id" class="message">
-        <div class="message-header">
-          <div class="avatar-container">
-            <div class="avatar">{{ message.avatar }}</div>
-            <div class="status-dot" :class="{ online: message.online }"></div>
+    <div class="messages-container">
+      <div class="messages">
+        <div v-for="group in messageGroups" :key="group.date">
+          <div class="date-separator">
+            <div class="date-line"></div>
+            <div class="date-text">{{ group.date }}</div>
+            <div class="date-line"></div>
           </div>
-          <span class="username">{{ message.user }}</span>
-          <span class="timestamp">{{ message.timestamp }}</span>
-        </div>
-        <div class="message-content" v-html="formatMessage(message.content)"></div>
-        <div v-if="message.attachments?.length" class="message-attachments">
-          <div v-for="attachment in message.attachments" :key="attachment.name" class="message-attachment" @click="selectedAttachment = attachment">
-            <div class="attachment-content">
-              <div v-if="attachment.type === 'image'" class="attachment-thumbnail">
-                <img :src="attachment.preview" :alt="attachment.name" />
-                <div class="attachment-overlay">
-                  <button class="overlay-button" @click.stop="downloadAttachment(attachment)">
-                    <ArrowDownTrayIcon class="icon" />
-                  </button>
+
+          <div v-for="message in group.messages" :key="message.id" class="message">
+            <div class="message-header">
+              <div class="avatar-container">
+                <div class="avatar">{{ message.avatar }}</div>
+                <div class="status-dot" :class="{ online: message.online }"></div>
+              </div>
+              <span class="username">{{ message.user }}</span>
+              <span class="timestamp">{{ message.timestamp }}</span>
+            </div>
+            <div class="message-content" v-html="formatMessage(message.content)"></div>
+            <div v-if="message.attachments?.length" class="message-attachments">
+              <div
+                v-for="attachment in message.attachments"
+                :key="attachment.name"
+                class="message-attachment"
+                @click="selectedAttachment = attachment"
+              >
+                <div class="attachment-content">
+                  <div v-if="attachment.type === 'image'" class="attachment-thumbnail">
+                    <img :src="attachment.preview" :alt="attachment.name" />
+                    <div class="attachment-overlay">
+                      <button class="overlay-button" @click.stop="downloadAttachment(attachment)">
+                        <ArrowDownTrayIcon class="icon" />
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else class="attachment-icon">
+                    <PaperClipIcon class="icon" />
+                    <button class="download-button" @click.stop="downloadAttachment(attachment)">
+                      <ArrowDownTrayIcon class="icon" />
+                    </button>
+                  </div>
+                  <span class="attachment-name">{{ attachment.name }}</span>
                 </div>
               </div>
-              <div v-else class="attachment-icon">
-                <PaperClipIcon class="icon" />
-                <button class="download-button" @click.stop="downloadAttachment(attachment)">
-                  <ArrowDownTrayIcon class="icon" />
-                </button>
+            </div>
+            <div class="comments" v-if="message.comments?.length">
+              <div v-for="comment in message.comments" :key="comment.id" class="comment">
+                <div class="avatar">{{ comment.avatar }}</div>
+                <div class="comment-content">
+                  <div class="comment-header">
+                    <span class="username">{{ comment.user }}</span>
+                    <span class="timestamp">{{ comment.timestamp }}</span>
+                  </div>
+                  <div v-html="formatMessage(comment.content)"></div>
+                </div>
               </div>
-              <span class="attachment-name">{{ attachment.name }}</span>
             </div>
-          </div>
-        </div>
-        <div class="comments" v-if="message.comments?.length">
-          <div v-for="comment in message.comments" :key="comment.id" class="comment">
-            <div class="avatar">{{ comment.avatar }}</div>
-            <div class="comment-content">
-              <div class="comment-header">
-                <span class="username">{{ comment.user }}</span>
-                <span class="timestamp">{{ comment.timestamp }}</span>
+
+            <button class="add-comment" @click="showCommentInput = message.id" v-if="showCommentInput !== message.id">Reply</button>
+
+            <div v-if="showCommentInput === message.id" class="comment-input">
+              <textarea
+                v-model="commentText"
+                placeholder="Add a comment..."
+                @keydown.enter.prevent="addComment(message.id)"
+                @input="adjustTextareaHeight"
+              ></textarea>
+              <button @click="addComment(message.id)">Send</button>
+            </div>
+
+            <div class="message-actions">
+              <div class="reactions" v-if="message.reactions?.length">
+                <div
+                  v-for="reaction in message.reactions"
+                  :key="reaction.emoji"
+                  class="reaction-badge"
+                  @click="toggleReaction(message.id, reaction.emoji)"
+                  :class="{ active: reaction.users.includes('You') }"
+                >
+                  {{ reaction.emoji }} {{ reaction.count }}
+                </div>
               </div>
-              <div v-html="formatMessage(comment.content)"></div>
+
+              <button class="add-reaction" @click="showReactionPicker(message.id)">
+                <span>😊</span>
+              </button>
             </div>
+
+            <emoji-picker v-if="showEmojiPickerForMessage === message.id" class="reaction-picker" @emoji-click="addReactionFromPicker"></emoji-picker>
           </div>
         </div>
-
-        <button class="add-comment" @click="showCommentInput = message.id" v-if="showCommentInput !== message.id">Reply</button>
-
-        <div v-if="showCommentInput === message.id" class="comment-input">
-          <textarea
-            v-model="commentText"
-            placeholder="Add a comment..."
-            @keydown.enter.prevent="addComment(message.id)"
-            @input="adjustTextareaHeight"
-          ></textarea>
-          <button @click="addComment(message.id)">Send</button>
-        </div>
-
-        <div class="message-actions">
-          <div class="reactions" v-if="message.reactions?.length">
-            <div
-              v-for="reaction in message.reactions"
-              :key="reaction.emoji"
-              class="reaction-badge"
-              @click="toggleReaction(message.id, reaction.emoji)"
-              :class="{ active: reaction.users.includes('You') }"
-            >
-              {{ reaction.emoji }} {{ reaction.count }}
-            </div>
-          </div>
-
-          <button class="add-reaction" @click="showReactionPicker(message.id)">
-            <span>😊</span>
-          </button>
-        </div>
-
-        <emoji-picker v-if="showEmojiPickerForMessage === message.id" class="reaction-picker" @emoji-click="addReactionFromPicker"></emoji-picker>
       </div>
     </div>
     <div class="editor">
@@ -517,7 +581,7 @@ onMounted(() => {
   background: #fafafa;
 }
 
-.messages {
+.messages-container {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
@@ -1135,5 +1199,27 @@ button:hover {
   width: 16px;
   height: 16px;
   color: #666;
+}
+
+.date-separator {
+  display: flex;
+  align-items: center;
+  margin: 28px 0;
+  padding: 0 16px;
+}
+
+.date-line {
+  flex: 1;
+  height: 1px;
+  background: #e5e5e5;
+}
+
+.date-text {
+  padding: 0 16px;
+  color: #666;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 </style>
