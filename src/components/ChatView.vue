@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount, onMounted, nextTick, onUnmounted } from 'vue'
 import { PaperClipIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline'
-import { BoldIcon, ItalicIcon, CodeIcon, ListBulletIcon, HashtagIcon, BookmarkIcon, EllipsisHorizontalIcon } from '@heroicons/vue/24/solid'
-import { PinIcon } from '@heroicons/vue/24/outline'
 import 'emoji-picker-element'
 import AttachmentViewer from './AttachmentViewer.vue'
 
@@ -439,7 +437,7 @@ const applyFormat = (format: string) => {
     bold: { prefix: '*', suffix: '*' },
     italic: { prefix: '_', suffix: '_' },
     code: { prefix: '`', suffix: '`' },
-    list: { prefix: '• ', suffix: '\n' },
+    list: { prefix: '- ', suffix: '\n' },
   }
 
   const { prefix, suffix } = formats[format as keyof typeof formats]
@@ -588,8 +586,6 @@ onMounted(() => {
           @paste="handlePaste"
         ></textarea>
 
-        <button class="emoji-button" @click="showEmojiPicker = !showEmojiPicker">😊</button>
-
         <emoji-picker v-if="showEmojiPicker" class="emoji-picker" @emoji-click="insertEmoji"></emoji-picker>
 
         <div v-if="showSuggestions" class="suggestions">
@@ -619,11 +615,12 @@ onMounted(() => {
       </div>
 
       <div class="editor-actions">
+        <button class="emoji-button" @click="showEmojiPicker = !showEmojiPicker">😊</button>
         <label class="attachment-button">
           <PaperClipIcon class="icon" />
           <input type="file" multiple @change="handleFileUpload" style="display: none" />
         </label>
-        <button @click="sendMessage">Send</button>
+        <button class="send-button" @click="sendMessage">Send</button>
       </div>
     </div>
     <AttachmentViewer v-if="selectedAttachment" :attachment="selectedAttachment" @close="selectedAttachment = null" />
@@ -791,36 +788,42 @@ textarea:focus {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-top: 8px;
 }
 
-.attachment-button {
-  padding: 8px;
+.emoji-button {
+  background: none;
+  border: none;
   cursor: pointer;
-  border-radius: 4px;
+  font-size: 20px;
+  padding: 4px 8px;
   display: flex;
   align-items: center;
 }
 
-.attachment-button:hover {
-  background: #f5f5f5;
+.attachment-button {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
 }
 
-.icon {
+.attachment-button .icon {
   width: 20px;
   height: 20px;
   color: #666;
 }
 
-button {
+.send-button {
   background: #1a73e8;
   color: white;
   border: none;
-  padding: 8px 16px;
   border-radius: 4px;
+  padding: 6px 12px;
   cursor: pointer;
 }
 
-button:hover {
+.send-button:hover {
   background: #1557b0;
 }
 
@@ -934,20 +937,10 @@ button:hover {
   border-radius: 12px;
 }
 
-.emoji-button {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 20px;
-}
-
 .emoji-picker {
   position: absolute;
   bottom: 100%;
-  right: 0;
+  left: 0;
   z-index: 1000;
 }
 
