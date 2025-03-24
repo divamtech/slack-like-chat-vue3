@@ -3,10 +3,10 @@ import { ref } from 'vue'
 import { ChevronDownIcon, PencilSquareIcon } from '@heroicons/vue/24/outline'
 
 interface DirectMessage {
-  id: string;
-  name: string;
-  avatar: string;
-  online: boolean;
+  id: string
+  name: string
+  avatar: string
+  online: boolean
 }
 
 const directMessages: DirectMessage[] = [
@@ -75,11 +75,13 @@ const toggleDMs = () => {
       </div>
       <div v-show="isDMsExpanded" class="dm-list">
         <div v-for="dm in directMessages" :key="dm.id" class="dm-item">
-          <div class="avatar">
-            {{ dm.avatar }}
+          <div class="avatar-container">
+            <div class="avatar">
+              {{ dm.avatar }}
+            </div>
+            <div class="status-dot" :class="{ online: dm.online }"></div>
           </div>
           <span>{{ dm.name }}</span>
-          <div v-if="!dm.online" class="status-indicator"></div>
         </div>
         <button class="add-button full">
           <span>+</span>
@@ -93,9 +95,11 @@ const toggleDMs = () => {
 <style scoped>
 .sidebar {
   width: 260px;
+  min-width: 260px; /* Add this to prevent sidebar from shrinking */
   background: white;
   border-right: 1px solid #e5e5e5;
   height: 100vh;
+  overflow-y: auto;
 }
 
 .header {
@@ -185,6 +189,10 @@ const toggleDMs = () => {
   margin-bottom: 8px;
 }
 
+.avatar-container {
+  position: relative;
+}
+
 .avatar {
   width: 32px;
   height: 32px;
@@ -196,11 +204,19 @@ const toggleDMs = () => {
   font-size: 14px;
 }
 
-.status-indicator {
+.status-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
   width: 8px;
   height: 8px;
-  background: #ccc;
   border-radius: 50%;
+  background: #ccc;
+  border: 2px solid white;
+}
+
+.status-dot.online {
+  background: #44b700;
 }
 
 .clickable {

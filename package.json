@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "vue": "^3.4.38",
-    "@heroicons/vue": "^2.1.1"
+    "@heroicons/vue": "^2.1.1",
+    "emoji-picker-element": "^1.12.1"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.1.3",
